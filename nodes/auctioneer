@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+#The line above is important so that this file is interpreted with Python when running it.
+
+# Import of python modules.
+from distutils.command.bdist_dumb import bdist_dumb
+import math
+
+# import of relevant libraries.
+import rospy # module for ROS APIs
+import actionlib
+from std_msgs.msg import Bool
+from connected_motion.msg import Points, AllocateAction, AllocateGoal, AuctionAction, AuctionGoal
+from connected_motion.srv import NewFollower, NewFollowerResponse
+
+# Constants.
+RANDOM_WAYPOINTS_TOPIC = '/rw'
+START_RANDOMIZE_TOPIC = '/sr'
+
+class Auctioneer():
+  def __init__(self):
+    """Constructor."""
+    self.followers = []
+
+    # Setting up publishers/subscribers
+    self._sr_pub = rospy.Publisher(START_RANDOMIZE_TOPIC,
+                                   Bool,
+                                   queue_size=1)
+    self.__rw_sub = rospy.Subscriber(RANDOM_WAYPOINTS_TOPIC,
+                                     Points,
+                                     self._rw_callback)
+
+  def auction(self):
+    s = rospy.Service('/new_follower', NewFollower, self.handle_new_follower)
+
+    rospy.spin()
+
+  def handle_new_follower(self, req):
+    """Processing of new follower message."""
+    bot_name = req.robot_name
+    if bot_name not in self.followers:
+      self.followers.append(bot_name)
+      print("added new follower " + bot_name)
+      # once enough followers are registered, start the auction
+      if len(self.followers) >= 3:
+        msg = Bool()
+        msg.data = True
+        self._sr_pub.publish(msg)
+      return NewFollowerResponse(True)
+    return NewFollowerResponse(False)
+
+  def _rw_callback(self, msg):
+    """Processing of rw message."""
+    bidders_left = list(range(len(self.followers)))
+    waypoints = msg.points
+    waypoints_left = list(range(len(waypoints)))
+    bids = []
+    winners = {}
+    goal = AuctionGoal()
+    goal.points = msg
+    for b in self.followers:
+      client = actionlib.SimpleActionClient(b+'auction', AuctionAction)
+      client.wait_for_server()
+      client.send_goal(goal)
+      client.wait_for_result()
+      result = client.get_result()
+      bids.append(result.bids)
+    
+    # iterate to perform sequential auction
+    while len(bidders_left) > 0 and len(waypoints_left) > 0:
+      max_bidder = None
+      max_waypoint = None
+      max_bid = -float('inf')
+      for b in bidders_left:
+        for w in waypoints_left:
+          bid = bids[b][w]
+          if bid > max_bid:
+            max_bid = bid
+            max_bidder = b
+            max_waypoint = w
+      winners[self.followers[max_bidder]] = waypoints[max_waypoint]
+      bidders_left.remove(max_bidder)
+      waypoints_left.remove(max_waypoint)
+
+      print("{0} wins with a bid of {1} on ({2},{3})".format(self.followers[max_bidder], max_bid, waypoints[max_waypoint].x, waypoints[max_waypoint].y))
+
+
+    print("Allocations:")
+    print(winners)
+
+    # send action to each robot to move to the waypoints that they won the auction on
+    for f, p in winners.items():
+      goal = AllocateGoal()
+      goal.point = p
+      
+      client = actionlib.SimpleActionClient(f+'allocate', AllocateAction)
+      client.wait_for_server()
+      client.send_goal(goal)
+      client.wait_for_result()
+    
+    # get more random waypoints
+    self._sr_pub.publish(True)
+  
+def main():
+  """Main function."""
+  # 1st. initialization of node.
+  rospy.init_node("auctioneer")
+
+  # Sleep for a few seconds to wait for the registration.
+  rospy.sleep(2)
+
+  # Initialization of the class for the regular polygon motion.
+  a = Auctioneer()
+    
+  try:
+    a.auction()
+
+  except rospy.ROSInterruptException:
+    rospy.logerr("ROS node interrupted.")
+
+if __name__ == "__main__":
+  """Run the main function."""
+  main()

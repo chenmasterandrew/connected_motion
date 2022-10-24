@@ -1,0 +1,76 @@
+include "turtlebot.inc"
+
+resolution 0.02
+interval_sim 100  # simulation timestep in milliseconds
+
+# throw in a robots
+
+turtlebot
+(
+  pose [ 1.0 2.0 0.0 90.0 ]
+  name "tb3_0"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 2.0 2.0 0.0 45.0  ]
+  name "tb3_1"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 0.0 1.0 0.0 90.0 ]
+  name "tb3_2"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 1.0 1.0 0.0 0.0 ]
+  name "tb3_3"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 2.0 1.0 0.0 180.0 ]
+  name "tb3_4"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 3.0 1.0 0.0 270.0 ]
+  name "tb3_5"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 0.0 -2.0 0.0 315.0 ]
+  name "tb3_6"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 1.0 -2.0 0.0 135.0 ]
+  name "tb3_7"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 2.0 -2.0 0.0 225.0 ]
+  name "tb3_8"
+  color "black"
+)
+
+turtlebot
+(
+  pose [ 3.0 -2.0 0.0 0.0 ]
+  name "tb3_9"
+  color "black"
+)

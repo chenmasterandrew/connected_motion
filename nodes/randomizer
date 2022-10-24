@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+#The line above is important so that this file is interpreted with Python when running it.
+
+# import of relevant libraries.
+import rospy # module for ROS APIs
+import random
+from std_msgs.msg import Bool
+from connected_motion.msg import Points, Point2D
+
+# Constants.
+RANDOM_WAYPOINTS_TOPIC = '/rw'
+START_RANDOMIZE_TOPIC = '/sr'
+MIN_X = -5
+MAX_X = 5
+MIN_Y = -5
+MAX_Y = 5
+MIN_D = 1
+
+class Randomizer():
+  def __init__(self):
+    """Constructor."""
+
+    # Setting up publishers/subscribers
+    self.__sr_sub = rospy.Subscriber(START_RANDOMIZE_TOPIC,
+                                   Bool,
+                                   self._sr_callback)
+    self._rw_pub = rospy.Publisher(RANDOM_WAYPOINTS_TOPIC,
+                                  Points,
+                                  queue_size=1)
+  
+  def randomize(self):
+    rospy.spin()
+
+  def _get_distance(self, x1, y1, x2, y2):
+    """"Utility function for getting the distance between two points (x1,y1) and (x2,y2)."""
+    return abs(((x2 - x1)**2 + (y2 - y1)**2)**0.5)
+
+  def _random_point(self):
+    x = random.uniform(MIN_X, MAX_X)
+    y = random.uniform(MIN_Y, MAX_Y)
+    p = (x, y)
+    # print("random point " + str(p))
+    return p
+
+  def _sr_callback(self, msg):
+    """Processing of sr message."""
+    points = []
+
+    # generate 3 random points that are far enough away from one another
+    while len(points) < 3:
+      point = self._random_point()
+      is_valid = True
+      for p in points:
+        d = self._get_distance(point[0], point[1], p[0], p[1])
+        if d < MIN_D:
+          is_valid = False
+          break
+      if is_valid:
+        points.append(point)
+
+    # send waypoints to auctioneer
+    p1 = Point2D()
+    p1.x = points[0][0]
+    p1.y = points[0][1]
+    p2 = Point2D()
+    p2.x = points[1][0]
+    p2.y = points[1][1]
+    p3 = Point2D()
+    p3.x = points[2][0]
+    p3.y = points[2][1]
+    ps = Points()
+    ps.points = [p1,p2,p3]
+    self._rw_pub.publish(ps)
+
+def main():
+  """Main function."""
+
+  # 1st. initialization of node.
+  rospy.init_node("randomizer")
+
+  # Sleep for a few seconds to wait for the registration.
+  rospy.sleep(2)
+
+  # Initialization of the class for the regular polygon motion.
+  r = Randomizer()
+    
+  try:
+    r.randomize()
+
+  except rospy.ROSInterruptException:
+    rospy.logerr("ROS node interrupted.")
+
+if __name__ == "__main__":
+  """Run the main function."""
+  main()
