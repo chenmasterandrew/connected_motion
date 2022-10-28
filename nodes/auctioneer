@@ -41,7 +41,8 @@ class Auctioneer():
       self.followers.append(bot_name)
       print("added new follower " + bot_name)
       # once enough followers are registered, start the auction
-      if len(self.followers) >= 3:
+      if len(self.followers) >= 5:
+        print("all followers are registered")
         msg = Bool()
         msg.data = True
         self._sr_pub.publish(msg)

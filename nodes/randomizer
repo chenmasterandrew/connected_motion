@@ -6,6 +6,9 @@ import rospy # module for ROS APIs
 import random
 from std_msgs.msg import Bool
 from connected_motion.msg import Points, Point2D
+import networkx as nx
+import re
+from networkx.algorithms.approximation.steinertree import steiner_tree
 
 # Constants.
 RANDOM_WAYPOINTS_TOPIC = '/rw'
@@ -19,6 +22,24 @@ MIN_D = 1
 class Randomizer():
   def __init__(self):
     """Constructor."""
+
+    str_nodes = rospy.get_param(rospy.get_namespace() + 'nodes')
+    str_edges = rospy.get_param(rospy.get_namespace() + 'edges')
+
+    nodes = [[float(y) for y in x.replace(")", "").split(",")] for x in re.sub("[\[\]( ]","",str_nodes).split("),")]
+    edges = [[int(y) for y in x.replace(")", "").split(",")] for x in re.sub("[\[\]( ]","",str_edges).split("),")]
+
+    print("Graph nodes:")
+    print(nodes)
+    print("Graph edges:")
+    print(edges)
+    
+    self.G = nx.Graph()
+    for n, [x, y] in enumerate(nodes):
+      self.G.add_node(n, x=x, y=y)
+
+    for n1, n2 in edges:
+      self.G.add_edge(n1, n2)
 
     # Setting up publishers/subscribers
     self.__sr_sub = rospy.Subscriber(START_RANDOMIZE_TOPIC,
@@ -35,42 +56,27 @@ class Randomizer():
     """"Utility function for getting the distance between two points (x1,y1) and (x2,y2)."""
     return abs(((x2 - x1)**2 + (y2 - y1)**2)**0.5)
 
-  def _random_point(self):
-    x = random.uniform(MIN_X, MAX_X)
-    y = random.uniform(MIN_Y, MAX_Y)
-    p = (x, y)
-    # print("random point " + str(p))
-    return p
-
   def _sr_callback(self, msg):
     """Processing of sr message."""
+    print("Generating random steiner tree")
+    num_terminals = random.randint(3, self.G.number_of_nodes())
+    terminals = random.sample(range(self.G.number_of_nodes()), num_terminals)
+    tree = steiner_tree(self.G, terminals)
+    print("selected terminal nodes:")
+    print(terminals)
+    print("steiner tree nodes:")
+    print(tree.nodes)
+
+    points_msg = Points()
     points = []
+    for n in tree.nodes:
+      p = Point2D()
+      p.x = tree.nodes[n]['x']
+      p.y = tree.nodes[n]['y']
+      points.append(p)
+    points_msg.points = points
 
-    # generate 3 random points that are far enough away from one another
-    while len(points) < 3:
-      point = self._random_point()
-      is_valid = True
-      for p in points:
-        d = self._get_distance(point[0], point[1], p[0], p[1])
-        if d < MIN_D:
-          is_valid = False
-          break
-      if is_valid:
-        points.append(point)
-
-    # send waypoints to auctioneer
-    p1 = Point2D()
-    p1.x = points[0][0]
-    p1.y = points[0][1]
-    p2 = Point2D()
-    p2.x = points[1][0]
-    p2.y = points[1][1]
-    p3 = Point2D()
-    p3.x = points[2][0]
-    p3.y = points[2][1]
-    ps = Points()
-    ps.points = [p1,p2,p3]
-    self._rw_pub.publish(ps)
+    self._rw_pub.publish(points_msg)
 
 def main():
   """Main function."""

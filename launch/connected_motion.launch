@@ -42,6 +42,12 @@
   <arg name="fifth_tb3_y_pos" default=" 2.0"/>
   <arg name="fifth_tb3_z_pos" default=" 0.0"/>
   <arg name="fifth_tb3_yaw"   default=" 0.0"/>
+
+  <arg name="nodes" default="[(1,0), (4,0), (1,3), (-2,0), (1,-3)]"/>
+  <arg name="edges" default="[(0,1), (0,2), (0,3), (0,4)]"/>
+
+  <param name="nodes" type="string" value="$(arg nodes)" />
+  <param name="edges" type="string" value="$(arg edges)" />
   
   <node name="broadcaster" pkg="connected_motion" type="broadcaster" respawn="false" output="screen" />
   

@@ -15,9 +15,11 @@
 	cd catkin_ws
 	catkin_make
  	source catkin_ws/devel/setup.sh
+  make sure to add networkx as a dependency in your Dockerfile
 	
 ## Run
-	roslaunch auction_motion auction_motion.launch
+	roslaunch connected_motion connected_motion.launch
+  nodes and edges can be changed as parameters in connected_motion.launch
 
 ## Attribution & Licensing
 
